@@ -1,0 +1,12 @@
+[project]
+name = "epstein-wiki"
+version = "0.1.0"
+
+[git]
+sync = true
+
+[site]
+domain = "localhost:3000"
+siteName = "epstein-wiki"
+adminEmail = ""
+oauthAllowedDomains = ["example.com"]

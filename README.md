@@ -1,0 +1,162 @@
+# Epstein File Wiki — POC
+
+**Investigative Journalism Research Knowledge Base**
+Stack: Semiont v0.5.7 · OpenSearch · Ollama · Langfuse · Ragas · Promptfoo
+
+---
+
+## Prerequisites
+
+```bash
+# Required
+docker desktop running
+node --version          # 20+
+python3 --version       # 3.10+
+export ANTHROPIC_API_KEY=sk-...
+npm install -g @semiont/cli
+semiont --version       # confirm
+
+# Python deps
+pip install requests beautifulsoup4 pymupdf pytesseract Pillow --break-system-packages
+# Tesseract binary (for scanned PDFs — see Known Gap below)
+brew install tesseract     # macOS
+# sudo apt install tesseract-ocr   # Ubuntu
+```
+
+---
+
+## Day 1 — Environment, Corpus, Ingest
+
+### 1. Start the stack
+
+```bash
+docker compose up -d
+# Wait ~60s for OpenSearch + Ollama model pull
+docker compose ps       # all services should show healthy
+```
+
+Services:
+- OpenSearch: http://localhost:9200
+- OpenSearch Dashboards: http://localhost:5601
+- Langfuse: http://localhost:3000
+- Ollama: http://localhost:11434
+
+### 2. Init Semiont project
+
+```bash
+semiont init --config semiont.toml
+semiont provision --service opensearch
+semiont provision --service mcp        # Claude Desktop integration
+```
+
+### 3. Download corpus (POC: datasets 1–3)
+
+```bash
+python scripts/batch_download_epstein_files.py --datasets 1 3
+# ~30–80 PDFs → raw/dataset_{1,2,3}/
+# Scanned PDFs flagged → logs/scanned_files.txt
+```
+
+> **Full corpus:** `--datasets 1 12` — only do this after validating pipeline on 1–3.
+
+### 4. OCR pre-processing (if scanned files detected)
+
+```bash
+# Check if any were flagged:
+cat logs/scanned_files.txt
+
+# If non-empty:
+python scripts/ocr_preprocess.py
+# Writes .ocr.txt sidecars alongside originals
+# ingest.py picks these up automatically
+```
+
+> ⚠️ **Known Gap:** Semiont has no native OCR. See [Known Gaps](#known-gaps) below.
+
+### 5. Ingest corpus
+
+```bash
+# Smoke test — first 10 files:
+python scripts/ingest.py --limit 10
+
+# Full ingest:
+python scripts/ingest.py
+```
+
+### 6. Validate
+
+```bash
+# Chunks indexed:
+curl http://localhost:9200/epstein-wiki/_count
+
+# BM25 search:
+curl 'http://localhost:9200/epstein-wiki/_search?q=Ghislaine+Maxwell&size=3' | python3 -m json.tool
+
+# Entity annotations in Semiont UI:
+semiont browse resources
+```
+
+**Day 1 exit condition:** `_count > 0`, BM25 returns hits, entity annotations visible in Semiont UI.
+
+---
+
+## Day 2 — Q&A, Routing, Tracing
+
+*Coming next — Claude Desktop MCP integration + Langfuse traces*
+
+---
+
+## Day 3 — Eval, Prompts, Demo-Ready
+
+*Coming next — Ragas + Promptfoo*
+
+---
+
+## Known Gaps
+
+### OCR / Image Recognition
+
+**Semiont v0.5.7 has no native OCR.** Scanned PDFs (image-only, no text layer) upload as opaque blobs — they produce zero chunks in OpenSearch and are invisible to both BM25 and k-NN search.
+
+**Workaround (POC):** `scripts/ocr_preprocess.py` uses Tesseract to generate `.ocr.txt` sidecars. `ingest.py` auto-detects and routes to sidecars. `batch_download_epstein_files.py` flags scanned files to `logs/scanned_files.txt`.
+
+**Full-build path:** Replace with AWS Textract, Google Document AI, or a self-hosted Surya/Marker pipeline as an Ingest Agent pre-processing stage. Semiont would need a `yield --ocr` flag or pre-processor plugin hook.
+
+**Scope:** Out of scope for 3-day POC. Sufficient text-layer PDFs exist in the corpus to validate the pipeline end-to-end.
+
+Full spec: `semiont-missing-features.md` — *Gap Note: OCR / Image Recognition*
+
+---
+
+## Upgrade Path (one config change each)
+
+| POC | Full Build | Change |
+|-----|-----------|--------|
+| OpenSearch local | AWS OpenSearch Service | `search.host` in semiont.toml |
+| Ollama nomic-embed-text (768) | Voyage AI voyage-3 (1024) | `embedding.type = "voyage"` + update index dimension |
+| In-process memory graph | Neo4j | `make-meaning.graph.type = "neo4j"` |
+| Docker Compose | Kubernetes/EKS + Terraform | `platform.type = "aws"` |
+| Claude Haiku 4.5 | Claude Sonnet 4.6 | `workers.default.inference.model` |
+| Langfuse cloud | Langfuse self-hosted | `tracing.host` |
+| Manual prompt optimization | LangGraph automated optimizer | Add agent layer |
+
+---
+
+## Reproducibility
+
+From a clean clone:
+
+```bash
+docker compose up -d
+pip install requests beautifulsoup4 pymupdf pytesseract Pillow --break-system-packages
+export ANTHROPIC_API_KEY=sk-...
+semiont init --config semiont.toml
+python scripts/batch_download_epstein_files.py --datasets 1 3
+python scripts/ocr_preprocess.py   # if scanned files found
+python scripts/ingest.py
+# < 30 min total
+```
+
+---
+
+*Semiont v0.5.7 (Apache-2.0) · OpenSearch (Apache-2.0) · Ragas (Apache-2.0) · Langfuse (MIT) · Promptfoo (MIT)*

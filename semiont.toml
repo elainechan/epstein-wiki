@@ -1,0 +1,85 @@
+# Epstein File Wiki — Semiont Project Configuration
+# Semiont v0.5.7 · Apache-2.0
+
+[project]
+name        = "epstein-wiki"
+description = "Investigative research KB — DOJ Epstein disclosure corpus"
+version     = "0.1.0"
+
+# ─────────────────────────────────────────────
+# Embedding — Ollama nomic-embed-text (POC)
+# Upgrade path: change type to "voyage" + apiKey for full build
+# ─────────────────────────────────────────────
+[embedding]
+type       = "ollama"
+model      = "nomic-embed-text"
+host       = "http://localhost:11434"
+dimension  = 768
+# Full build upgrade:
+# type    = "voyage"
+# model   = "voyage-3"
+# apiKey  = "${VOYAGE_API_KEY}"
+# dimension = 1024  # also update OpenSearch index mapping
+
+# ─────────────────────────────────────────────
+# Inference — Claude Haiku 4.5 (POC)
+# Upgrade path: change model to claude-sonnet-4-6 for full build
+# ─────────────────────────────────────────────
+[workers.default.inference]
+provider = "anthropic"
+model    = "claude-haiku-4-5-20251001"
+apiKey   = "${ANTHROPIC_API_KEY}"
+# Full build upgrade:
+# model  = "claude-sonnet-4-6"
+
+# ─────────────────────────────────────────────
+# Search — OpenSearch hybrid (BM25 + k-NN)
+# Upgrade path: change host to AWS OpenSearch Service endpoint
+# ─────────────────────────────────────────────
+[search]
+type  = "opensearch"
+host  = "http://localhost"
+port  = 9200
+index = "epstein-wiki"
+# Full build upgrade:
+# host = "https://<your-domain>.us-east-1.es.amazonaws.com"
+# port = 443
+
+# ─────────────────────────────────────────────
+# Graph — in-process memory (POC)
+# Upgrade path: type = "neo4j" + uri/credentials
+# ─────────────────────────────────────────────
+[make-meaning.graph]
+type = "memory"
+# Full build upgrade:
+# type        = "neo4j"
+# uri         = "bolt://localhost:7687"
+# username    = "neo4j"
+# password    = "${NEO4J_PASSWORD}"
+
+# ─────────────────────────────────────────────
+# Tracing — Langfuse
+# ─────────────────────────────────────────────
+[tracing]
+enabled    = true
+provider   = "langfuse"
+host       = "http://localhost:3000"
+publicKey  = "${LANGFUSE_PUBLIC_KEY}"
+secretKey  = "${LANGFUSE_SECRET_KEY}"
+# Full build upgrade: change host to self-hosted Langfuse endpoint
+
+# ─────────────────────────────────────────────
+# MCP Server — Claude Desktop integration
+# ─────────────────────────────────────────────
+[mcp]
+enabled = true
+port    = 8080
+
+# ─────────────────────────────────────────────
+# Platform — local Docker Compose (POC)
+# Upgrade path: platform = "aws"
+# ─────────────────────────────────────────────
+[platform]
+type = "local"
+# Full build upgrade:
+# type = "aws"

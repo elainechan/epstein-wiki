@@ -1,0 +1,177 @@
+version: "3.9"
+
+# Epstein File Wiki — POC Stack
+# Semiont v0.5.7 · OpenSearch 2.x · Ollama · Langfuse
+# Usage: docker compose up -d
+
+services:
+
+  # ─────────────────────────────────────────────
+  # OpenSearch — BM25 + k-NN hybrid search
+  # ─────────────────────────────────────────────
+  opensearch:
+    image: opensearchproject/opensearch:2.13.0
+    container_name: epstein-opensearch
+    environment:
+      - discovery.type=single-node
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Epstein_Wiki_2026!
+      - plugins.security.disabled=true          # dev only — no TLS
+      - ES_JAVA_OPTS=-Xms1g -Xmx2g
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx2g
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\\|yellow\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.13.0
+    container_name: epstein-dashboards
+    ports:
+      - "5601:5601"
+    environment:
+      - OPENSEARCH_HOSTS=http://opensearch:9200
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    depends_on:
+      opensearch:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────
+  # Ollama — local embeddings (nomic-embed-text, 768-dim)
+  # ─────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: epstein-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    # Pull nomic-embed-text on first start
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull nomic-embed-text && wait"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:11434/api/tags | grep -q nomic-embed-text"]
+      interval: 20s
+      timeout: 15s
+      retries: 15
+
+  # ─────────────────────────────────────────────
+  # Langfuse — tracing & observability
+  # ─────────────────────────────────────────────
+  langfuse-db:
+    image: postgres:15
+    container_name: epstein-langfuse-db
+    environment:
+      - POSTGRES_USER=langfuse
+      - POSTGRES_PASSWORD=langfuse
+      - POSTGRES_DB=langfuse
+    volumes:
+      - langfuse-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: epstein-langfuse
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://langfuse:langfuse@langfuse-db:5432/langfuse
+      - NEXTAUTH_SECRET=epstein-wiki-langfuse-secret-2026
+      - SALT=epstein-wiki-salt-2026
+      - NEXTAUTH_URL=http://localhost:3000
+      - TELEMETRY_ENABLED=false
+      - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=false
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:3000/api/public/health | grep -q ok"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # ─────────────────────────────────────────────
+  # Semiont PostgreSQL — backend database
+  # ─────────────────────────────────────────────
+  semiont-db:
+    image: postgres:16-alpine
+    container_name: epstein-semiont-db
+    environment:
+      - POSTGRES_USER=semiont
+      - POSTGRES_PASSWORD=semiont
+      - POSTGRES_DB=epstein-wiki
+    volumes:
+      - semiont-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U semiont"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # Semiont Backend — built from GitHub source
+  # ─────────────────────────────────────────────
+  semiont-backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.semiont-backend
+    container_name: epstein-semiont-backend
+    depends_on:
+      semiont-db:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=postgresql://semiont:semiont@semiont-db:5432/epstein-wiki
+      - DB_HOST=semiont-db
+      - DB_PORT=5432
+      - DB_NAME=epstein-wiki
+      - DB_USER=semiont
+      - DB_PASSWORD=semiont
+      - JWT_SECRET=epstein-wiki-jwt-secret-2026-change-in-prod
+      - SEMIONT_WORKER_SECRET=epstein-wiki-worker-secret-2026
+      - SEMIONT_ROOT=/app/project
+      - SEMIONT_ENV=local
+      - NODE_ENV=production
+    volumes:
+      - .:/app/project
+      - ./docker/semiontconfig:/root/.semiontconfig:ro
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4000/api/health', r => process.exit(r.statusCode < 400 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  # ─────────────────────────────────────────────
+  # Semiont Frontend — published image, GUI
+  # ─────────────────────────────────────────────
+  semiont-frontend:
+    image: ghcr.io/the-ai-alliance/semiont-frontend:latest
+    container_name: epstein-semiont-frontend
+    ports:
+      - "3001:3000"
+    depends_on:
+      semiont-backend:
+        condition: service_healthy
+
+volumes:
+  opensearch-data:
+  ollama-models:
+  langfuse-db-data:
+  semiont-db-data:

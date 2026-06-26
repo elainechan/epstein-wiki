@@ -1,0 +1,22 @@
+# Secrets
+.env
+
+# Data
+epstein-files/
+*.pdf
+download
+download.log
+
+# Generated
+logs/
+.semiont/events/
+scripts/__pycache__/
+**/__pycache__
+
+# Dev
+.DS_Store
+.venv/
+.gstack/
+
+# Session notes
+HANDOFF.md
