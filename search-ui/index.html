@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Epstein Files — Search</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #23263a;
+    --border: #2e3150; --accent: #6c8ef7; --accent-dim: #3d4f9e;
+    --text: #e2e4f0; --text-dim: #8b90b0;
+    --hit: #f7c96c; --danger: #e05c5c; --warn: #f0a050;
+    --semantic: #a78bfa; --hybrid: #34d399;
+    --radius: 8px; --font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  body { background:var(--bg); color:var(--text); font-family:var(--font); font-size:14px; line-height:1.6; min-height:100vh; }
+
+  /* Layout */
+  #shell { display:flex; height:100vh; overflow:hidden; }
+  #sidebar { width:260px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+  #main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+  /* Sidebar */
+  #logo { padding:18px 16px 12px; border-bottom:1px solid var(--border); }
+  #logo h1 { font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); }
+  #logo p  { font-size:11px; color:var(--text-dim); margin-top:2px; }
+  #dataset-panel { flex:1; overflow-y:auto; padding:12px 0; }
+  #dataset-panel h2 { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--text-dim); padding:0 16px 8px; }
+  .ds-item { display:flex; align-items:center; gap:8px; padding:5px 16px; cursor:pointer; }
+  .ds-item:hover { background:var(--surface2); }
+  .ds-item input[type=checkbox] { accent-color:var(--accent); flex-shrink:0; }
+  .ds-item label { font-size:11px; color:var(--text-dim); flex:1; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ds-item .ds-count { font-size:10px; color:var(--text-dim); background:var(--surface2); padding:1px 5px; border-radius:10px; flex-shrink:0; }
+
+  /* Topbar */
+  #topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:12px 20px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  #search-wrap { flex:1; min-width:200px; position:relative; }
+  #search-input { width:100%; padding:9px 14px 9px 38px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:14px; outline:none; transition:border-color .15s; }
+  #search-input:focus { border-color:var(--accent); }
+  #search-wrap::before { content:"⌕"; position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--text-dim); font-size:18px; pointer-events:none; }
+
+  /* Mode buttons */
+  #mode-toggle { display:flex; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; flex-shrink:0; }
+  .mode-btn { background:none; border:none; border-right:1px solid var(--border); color:var(--text-dim); padding:8px 13px; cursor:pointer; font-size:12px; white-space:nowrap; transition:background .1s, color .1s; }
+  .mode-btn:last-child { border-right:none; }
+  .mode-btn:hover { background:var(--surface2); color:var(--text); }
+  .mode-btn.active[data-mode=fulltext]  { background:var(--accent);   color:#fff; }
+  .mode-btn.active[data-mode=phrase]    { background:var(--warn);     color:#1a1207; }
+  .mode-btn.active[data-mode=semantic]  { background:var(--semantic); color:#fff; }
+  .mode-btn.active[data-mode=hybrid]    { background:var(--hybrid);   color:#0a1f14; }
+
+  /* Mode help panel */
+  #mode-help { background:var(--surface2); border-bottom:1px solid var(--border); padding:0; max-height:0; overflow:hidden; transition:max-height .25s ease, padding .25s ease; position:relative; }
+  #mode-help.open { max-height:320px; padding:14px 20px 16px; }
+  .help-inner { display:grid; grid-template-columns:1fr 1fr; gap:16px 32px; }
+  .help-close-wrap { position:absolute; top:10px; right:14px; }
+  .help-section h3 { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--text-dim); margin-bottom:6px; }
+  .help-section p  { font-size:12px; color:var(--text-dim); line-height:1.6; margin-bottom:6px; }
+  .help-section p strong { color:var(--text); font-weight:600; }
+  .help-examples { list-style:none; margin:4px 0 8px; }
+  .help-examples li { font-size:11px; color:var(--text-dim); line-height:1.8; }
+  .help-examples li::before { content:"› "; color:var(--accent); }
+  .help-examples li em { font-style:italic; color:var(--text); background:var(--surface); padding:1px 5px; border-radius:3px; font-size:10px; font-family:monospace; }
+  .help-links { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
+  .help-link { font-size:10px; color:var(--accent); text-decoration:none; border:1px solid var(--border); border-radius:4px; padding:2px 7px; }
+  .help-link:hover { background:var(--border); }
+  .help-close { float:right; background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:16px; line-height:1; padding:0 0 0 12px; }
+  .help-close:hover { color:var(--text); }
+  .mode-accent-ft { color:var(--accent); }
+  .mode-accent-ph { color:var(--warn); }
+  .mode-accent-se { color:var(--semantic); }
+  .mode-accent-hy { color:var(--hybrid); }
+  #help-btn { background:none; border:1px solid var(--border); border-radius:var(--radius); color:var(--text-dim); padding:8px 10px; cursor:pointer; font-size:12px; flex-shrink:0; transition:background .1s; }
+  #help-btn:hover, #help-btn.active { background:var(--surface2); color:var(--text); }
+
+  /* Stats */
+  #stats-bar { font-size:11px; color:var(--text-dim); padding:6px 20px; border-bottom:1px solid var(--border); background:var(--bg); min-height:28px; display:flex; align-items:center; gap:8px; }
+  .embed-badge { font-size:10px; padding:2px 7px; border-radius:10px; background:var(--semantic); color:#fff; opacity:.85; }
+
+  /* Results */
+  #results-pane { flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:10px; }
+  .result-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; cursor:pointer; transition:border-color .15s, background .15s; }
+  .result-card:hover { border-color:var(--accent); background:var(--surface2); }
+  .result-header { display:flex; align-items:baseline; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+  .result-id { font-size:13px; font-weight:600; color:var(--accent); }
+  .result-dataset { font-size:10px; color:var(--text-dim); background:var(--surface2); padding:2px 7px; border-radius:10px; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .score-bm25     { margin-left:auto; font-size:11px; color:var(--hit); }
+  .score-semantic { margin-left:auto; font-size:11px; color:var(--semantic); }
+  .score-hybrid   { margin-left:auto; font-size:11px; color:var(--hybrid); }
+  .result-snippet { font-size:12px; color:var(--text-dim); line-height:1.5; }
+  .result-snippet em { color:var(--hit); font-style:normal; font-weight:600; }
+
+  .load-more-btn { background:var(--surface); border:1px dashed var(--border); border-radius:var(--radius); padding:12px; color:var(--text-dim); font-size:13px; cursor:pointer; text-align:center; transition:border-color .15s; }
+  .load-more-btn:hover { border-color:var(--accent); color:var(--text); }
+
+  /* Modal */
+  #modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:100; align-items:center; justify-content:center; }
+  #modal-overlay.open { display:flex; }
+  #modal { background:var(--surface); border:1px solid var(--border); border-radius:10px; width:820px; max-width:95vw; max-height:88vh; display:flex; flex-direction:column; overflow:hidden; }
+  #modal-header { display:flex; align-items:flex-start; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  #modal-meta { flex:1; }
+  #modal-title { font-size:14px; font-weight:600; }
+  #modal-dataset { font-size:11px; color:var(--text-dim); margin-top:2px; }
+  #modal-close { background:none; border:none; color:var(--text-dim); font-size:20px; cursor:pointer; padding:2px 6px; line-height:1; flex-shrink:0; }
+  #modal-close:hover { color:var(--text); }
+  #modal-body { flex:1; overflow-y:auto; padding:18px 20px; font-size:13px; line-height:1.8; white-space:pre-wrap; font-family:"Georgia",serif; color:#c8cce0; }
+
+  /* States */
+  .state-msg { text-align:center; padding:60px 20px; color:var(--text-dim); font-size:13px; }
+  .state-msg .icon { font-size:36px; margin-bottom:10px; }
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .6s linear infinite; vertical-align:middle; margin-right:5px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="shell">
+
+  <aside id="sidebar">
+    <div id="logo">
+      <h1>Epstein Files</h1>
+      <p id="doc-count">Loading… · OpenSearch</p>
+    </div>
+    <div id="dataset-panel">
+      <h2>Datasets</h2>
+      <div id="dataset-list"><div class="state-msg" style="padding:20px"><span class="spinner"></span></div></div>
+    </div>
+  </aside>
+
+  <div id="main">
+    <div id="topbar">
+      <div id="search-wrap">
+        <input id="search-input" type="search" placeholder="Search documents…" autocomplete="off"/>
+      </div>
+      <div id="mode-toggle">
+        <button class="mode-btn active" data-mode="fulltext">Full-text</button>
+        <button class="mode-btn"        data-mode="phrase">Phrase</button>
+        <button class="mode-btn"        data-mode="semantic">Semantic</button>
+        <button class="mode-btn"        data-mode="hybrid">Hybrid</button>
+      </div>
+      <button id="help-btn" title="Search mode reference">?</button>
+    </div>
+    <div id="mode-help">
+      <div class="help-close-wrap"><button class="help-close" id="help-close-btn">✕</button></div>
+      <div class="help-inner" id="help-content"></div>
+    </div>
+    <div id="stats-bar"></div>
+    <div id="results-pane">
+      <div class="state-msg"><div class="icon">🔍</div>Type to search across 31,844 documents</div>
+    </div>
+  </div>
+
+</div>
+
+<div id="modal-overlay">
+  <div id="modal">
+    <div id="modal-header">
+      <div id="modal-meta">
+        <div id="modal-title"></div>
+        <div id="modal-dataset"></div>
+      </div>
+      <button id="modal-close">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+const OS_API    = '/api/epstein-wiki';
+const EMBED_API = '/embed';
+const EMBED_MODEL = 'nomic-embed-text';
+const PAGE_SIZE = 20;
+const KNN_K     = 50;
+
+const MODE_HELP = {
+  fulltext: {
+    accentClass: 'mode-accent-ft',
+    headline: 'Full-text search (BM25)',
+    desc: `Uses <strong>Okapi BM25</strong> ranking — same algorithm as Elasticsearch/Solr. Scores by term frequency, inverse document frequency, and field length. Fuzzy matching (AUTO) allows 1–2 character edits for typos. Searches across all chunks; deduplicates by document.`,
+    goodFor: 'Names, case numbers, organisations, quoted identifiers, partial spellings.',
+    examples: [
+      ['ghislaine maxwell', 'name search, fuzzy-tolerant'],
+      ['EFTA02744180', 'exact document ID'],
+      ['19-cv-10475', 'case number'],
+      ['Palm Beach County Sheriff', 'org + location'],
+    ],
+    query: `{ "multi_match": { "query": "...", "fields": ["text"], "fuzziness": "AUTO" } }`,
+    links: [
+      ['multi_match', 'https://opensearch.org/docs/latest/query-dsl/full-text/multi-match/'],
+      ['BM25 theory', 'https://opensearch.org/docs/latest/search-plugins/searching-data/relevance-search/'],
+    ],
+  },
+  phrase: {
+    accentClass: 'mode-accent-ph',
+    headline: 'Phrase search (match_phrase)',
+    desc: `Requires all words to appear <strong>adjacent and in order</strong>. No fuzzy matching — every character must match exactly. Far more precise than full-text; use when word order matters.`,
+    goodFor: 'Exact multi-word expressions, legal boilerplate, named relationships.',
+    examples: [
+      ['sexual trafficking', 'adjacent phrase in that order'],
+      ['epstein island', 'exact two-word occurrence'],
+      ['plea agreement', 'legal term of art'],
+      ['minor female victim', 'exact allegation language'],
+    ],
+    query: `{ "match_phrase": { "text": "..." } }`,
+    links: [
+      ['match_phrase', 'https://opensearch.org/docs/latest/query-dsl/full-text/match-phrase/'],
+      ['phrase slop', 'https://opensearch.org/docs/latest/query-dsl/full-text/match-phrase/#slop'],
+    ],
+  },
+  semantic: {
+    accentClass: 'mode-accent-se',
+    headline: 'Semantic / vector search (k-NN)',
+    desc: `Your query is embedded by <strong>nomic-embed-text</strong> (768-dim, running locally via Ollama) into the same vector space as the indexed chunks. OpenSearch finds the <em>k</em> nearest neighbours by <strong>cosine similarity</strong> using HNSW (nmslib). Returns conceptually related passages even with zero keyword overlap.`,
+    goodFor: 'Conceptual questions, paraphrases, when you don\'t know the exact terminology used.',
+    examples: [
+      ['who recruited young women for epstein', 'concept, not keywords'],
+      ['financial arrangements for silence', 'paraphrase for NDA / hush money'],
+      ['private plane passenger list', 'semantic variant of "Lolita Express"'],
+      ['relationship between maxwell and epstein', 'open-ended relational query'],
+    ],
+    query: `{ "knn": { "embedding": { "vector": [...768 floats...], "k": 50 } } }`,
+    links: [
+      ['k-NN search', 'https://opensearch.org/docs/latest/search-plugins/knn/knn-score-script/'],
+      ['HNSW method', 'https://opensearch.org/docs/latest/search-plugins/knn/knn-index/#method-definitions'],
+      ['nomic-embed-text', 'https://ollama.com/library/nomic-embed-text'],
+    ],
+  },
+  hybrid: {
+    accentClass: 'mode-accent-hy',
+    headline: 'Hybrid search (BM25 + k-NN)',
+    desc: `Combines BM25 and vector k-NN in a <strong>bool/should</strong> clause — a document scores if it matches <em>either</em>. Result set is the union, re-ranked by the combined score. Best overall precision: catches exact keyword hits AND semantically similar passages that BM25 would miss.`,
+    goodFor: 'General-purpose investigation where you want maximum recall without sacrificing precision.',
+    examples: [
+      ['maxwell epstein recruitment scheme', 'keywords + semantic concepts combined'],
+      ['payment to victims', 'exact phrase AND conceptual matches'],
+      ['federal non-prosecution agreement', 'legal term + semantic variants'],
+      ['pilot flight logs', 'known term + related concepts'],
+    ],
+    query: `{ "bool": { "should": [ { "multi_match": {...} }, { "knn": {...} } ], "minimum_should_match": 1 } }`,
+    links: [
+      ['hybrid search', 'https://opensearch.org/docs/latest/search-plugins/hybrid-search/'],
+      ['bool query', 'https://opensearch.org/docs/latest/query-dsl/compound/bool/'],
+      ['search pipeline', 'https://opensearch.org/docs/latest/search-plugins/search-pipelines/'],
+    ],
+  },
+};
+
+function renderHelpPanel(mode) {
+  const h   = MODE_HELP[mode];
+  const ex  = h.examples.map(([q, note]) =>
+    `<li><em>${escHtml(q)}</em> — ${escHtml(note)}</li>`).join('');
+  const lnk = h.links.map(([label, url]) =>
+    `<a class="help-link" href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(label)} ↗</a>`).join('');
+  document.getElementById('help-content').innerHTML = `
+    <div class="help-section">
+      <h3><span class="${h.accentClass}">${escHtml(h.headline)}</span></h3>
+      <p>${h.desc}</p>
+      <p><strong>Best for:</strong> ${escHtml(h.goodFor)}</p>
+      <div class="help-links">${lnk}</div>
+    </div>
+    <div class="help-section">
+      <h3>Example queries</h3>
+      <ul class="help-examples">${ex}</ul>
+      <h3 style="margin-top:8px">OpenSearch DSL</h3>
+      <p style="font-family:monospace;font-size:10px;background:var(--bg);padding:6px 8px;border-radius:4px;white-space:pre-wrap;line-height:1.5">${escHtml(h.query)}</p>
+    </div>
+  `;
+}
+
+function closeHelp() {
+  document.getElementById('mode-help').classList.remove('open');
+  document.getElementById('help-btn').classList.remove('active');
+}
+
+let state = {
+  query: '', mode: 'fulltext',
+  excludedDatasets: new Set(),
+  from: 0, total: 0, results: [],
+  loading: false, lastVector: null,
+};
+
+// ── Embed ──────────────────────────────────────────────────────
+async function embed(text) {
+  const res = await fetch(EMBED_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: EMBED_MODEL, prompt: text }),
+  });
+  const d = await res.json();
+  if (!d.embedding) throw new Error(d.error || 'Embed failed');
+  return d.embedding;
+}
+
+// ── Query builder ─────────────────────────────────────────────
+function datasetFilter() {
+  if (state.excludedDatasets.size === 0) return null;
+  return { bool: { must_not: [{ terms: { dataset: [...state.excludedDatasets] } }] } };
+}
+
+function wrapFilter(clause) {
+  const f = datasetFilter();
+  if (!f) return clause;
+  return { bool: { must: clause, filter: f } };
+}
+
+async function buildQuery(from) {
+  const q  = state.query.trim();
+  const ds = datasetFilter();
+
+  // Base highlight config
+  const highlight = {
+    fields: { text: { number_of_fragments: 1, fragment_size: 200 } },
+    pre_tags: ['<em>'], post_tags: ['</em>'],
+  };
+
+  const base = {
+    size: PAGE_SIZE, from,
+    _source: ['resource_id', 'dataset', 'chunk_index'],
+    highlight,
+    collapse: { field: 'resource_id' },
+    aggs: { total_docs: { cardinality: { field: 'resource_id' } } },
+  };
+
+  // No query → match_all
+  if (!q) {
+    base.query = ds ? { bool: { filter: ds } } : { match_all: {} };
+    return base;
+  }
+
+  if (state.mode === 'fulltext') {
+    const clause = {
+      multi_match: { query: q, fields: ['text'], type: 'best_fields', fuzziness: 'AUTO' }
+    };
+    base.query = ds ? { bool: { must: clause, filter: ds } } : clause;
+
+  } else if (state.mode === 'phrase') {
+    const clause = { match_phrase: { text: q } };
+    base.query = ds ? { bool: { must: clause, filter: ds } } : clause;
+
+  } else if (state.mode === 'semantic') {
+    // Need vector — use cached if same query
+    if (!state.lastVector) state.lastVector = await embed(q);
+    const clause = { knn: { embedding: { vector: state.lastVector, k: KNN_K } } };
+    base.query = ds ? { bool: { must: clause, filter: ds } } : clause;
+    // knn doesn't support collapse + aggs cleanly; disable for now
+    delete base.collapse;
+    delete base.aggs;
+
+  } else if (state.mode === 'hybrid') {
+    if (!state.lastVector) state.lastVector = await embed(q);
+    const bm25 = { multi_match: { query: q, fields: ['text'], type: 'best_fields' } };
+    const knn  = { knn: { embedding: { vector: state.lastVector, k: KNN_K } } };
+    const should = { bool: { should: [bm25, knn], minimum_should_match: 1 } };
+    base.query = ds ? { bool: { must: should, filter: ds } } : should;
+    delete base.collapse;
+    delete base.aggs;
+  }
+
+  return base;
+}
+
+// ── Search ────────────────────────────────────────────────────
+async function search(reset = false) {
+  if (reset) { state.from = 0; state.results = []; state.lastVector = null; }
+  state.loading = true;
+  renderStats('loading');
+
+  try {
+    const body = await buildQuery(state.from);
+    const res  = await fetch(`${OS_API}/_search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.reason || JSON.stringify(data.error));
+
+    const hits  = data.hits?.hits || [];
+    const total = data.aggregations?.total_docs?.value
+               ?? data.hits?.total?.value ?? 0;
+
+    state.total   = total;
+    state.results = reset ? hits : [...state.results, ...hits];
+    state.from   += hits.length;
+
+    renderResults(reset);
+    renderStats('done');
+  } catch (err) {
+    renderStats('error', err.message);
+    if (reset) {
+      document.getElementById('results-pane').innerHTML =
+        `<div class="state-msg"><div class="icon">⚠️</div>${escHtml(err.message)}</div>`;
+    }
+  }
+  state.loading = false;
+}
+
+// ── Render ────────────────────────────────────────────────────
+function renderStats(phase, msg) {
+  const bar = document.getElementById('stats-bar');
+  if (phase === 'loading') {
+    const needsEmbed = (state.mode === 'semantic' || state.mode === 'hybrid') && state.query.trim() && !state.lastVector;
+    bar.innerHTML = needsEmbed
+      ? `<span class="spinner"></span> Embedding query… <span class="embed-badge">nomic-embed-text</span>`
+      : `<span class="spinner"></span> Searching…`;
+    return;
+  }
+  if (phase === 'error') {
+    bar.innerHTML = `<span style="color:var(--danger)">Error: ${escHtml(msg)}</span>`;
+    return;
+  }
+  const q = state.query.trim();
+  const modeColors = { fulltext:'var(--accent)', phrase:'var(--warn)', semantic:'var(--semantic)', hybrid:'var(--hybrid)' };
+  const modeLabel  = { fulltext:'BM25', phrase:'Phrase', semantic:'Semantic ✦', hybrid:'Hybrid ✦' };
+  const badge = `<span style="color:${modeColors[state.mode]};font-weight:600">${modeLabel[state.mode]}</span>`;
+
+  if (!q && state.excludedDatasets.size === 0) {
+    bar.innerHTML = `Showing all documents — type to search`;
+  } else {
+    const vectorNote = state.lastVector ? ` <span class="embed-badge">nomic-embed-text 768d</span>` : '';
+    bar.innerHTML = `${badge} · ${fmtNum(state.total)} unique documents${q ? ` for "<strong>${escHtml(q)}</strong>"` : ''}${vectorNote}`;
+  }
+}
+
+function scoreClass(mode) {
+  if (mode === 'semantic') return 'score-semantic';
+  if (mode === 'hybrid')   return 'score-hybrid';
+  return 'score-bm25';
+}
+
+function renderResults(reset) {
+  const pane = document.getElementById('results-pane');
+  if (reset) pane.innerHTML = '';
+
+  if (state.results.length === 0) {
+    pane.innerHTML = `<div class="state-msg"><div class="icon">∅</div>No results found</div>`;
+    return;
+  }
+
+  const oldBtn = pane.querySelector('.load-more-btn');
+  if (oldBtn) oldBtn.remove();
+
+  const toRender = reset ? state.results : state.results.slice(state.from - state.results.length);
+  (reset ? state.results : toRender).forEach(hit => {
+    const rid     = hit._source.resource_id;
+    const ds      = hit._source.dataset || '';
+    const snippet = hit.highlight?.text?.[0] || '';
+    const score   = hit._score != null ? hit._score.toFixed(3) : '';
+
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.innerHTML = `
+      <div class="result-header">
+        <span class="result-id">${escHtml(rid)}</span>
+        <span class="result-dataset" title="${escHtml(ds)}">${escHtml(dsShort(ds))}</span>
+        ${score ? `<span class="${scoreClass(state.mode)}">${score}</span>` : ''}
+      </div>
+      <div class="result-snippet">${snippet || '<span style="opacity:.4">No preview</span>'}</div>
+    `;
+    card.addEventListener('click', () => openDoc(rid, ds));
+    pane.appendChild(card);
+  });
+
+  if (state.results.length < state.total && state.total > 0) {
+    const btn = document.createElement('div');
+    btn.className = 'load-more-btn';
+    btn.textContent = `Load more (${fmtNum(state.total - state.results.length)} remaining)`;
+    btn.addEventListener('click', () => { if (!state.loading) search(false); });
+    pane.appendChild(btn);
+  }
+}
+
+// ── Document viewer ───────────────────────────────────────────
+async function openDoc(resourceId, dataset) {
+  document.getElementById('modal-title').textContent   = resourceId;
+  document.getElementById('modal-dataset').textContent = dataset;
+  document.getElementById('modal-body').innerHTML = '<span class="spinner"></span> Loading…';
+  document.getElementById('modal-overlay').classList.add('open');
+
+  try {
+    const res = await fetch(`${OS_API}/_search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        size: 1000,
+        query: { term: { resource_id: resourceId } },
+        sort: [{ chunk_index: 'asc' }],
+        _source: ['text'],
+      }),
+    });
+    const data   = await res.json();
+    const chunks = data.hits.hits.map(h => h._source.text).join('\n\n');
+    document.getElementById('modal-body').textContent = chunks || '(no text)';
+  } catch (err) {
+    document.getElementById('modal-body').textContent = `Error: ${err.message}`;
+  }
+}
+
+// ── Dataset sidebar ───────────────────────────────────────────
+async function loadDatasets() {
+  const res  = await fetch(`${OS_API}/_search`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ size:0, aggs:{ datasets:{ terms:{ field:'dataset', size:100, order:{_count:'desc'} } } } }),
+  });
+  const data    = await res.json();
+  const buckets = data.aggregations.datasets.buckets;
+  const total   = buckets.reduce((s,b) => s + b.doc_count, 0);
+
+  document.getElementById('doc-count').textContent = `${fmtNum(total)} chunks · OpenSearch`;
+
+  const list = document.getElementById('dataset-list');
+  list.innerHTML = '';
+
+  const allRow = document.createElement('div');
+  allRow.className = 'ds-item';
+  allRow.innerHTML = `<input type="checkbox" id="ds-all" checked><label for="ds-all" style="color:var(--text);font-weight:600">All datasets</label>`;
+  allRow.querySelector('input').addEventListener('change', e => {
+    list.querySelectorAll('input[data-ds]').forEach(cb => cb.checked = e.target.checked);
+    state.excludedDatasets = e.target.checked ? new Set() : new Set(buckets.map(b => b.key));
+    search(true);
+  });
+  list.appendChild(allRow);
+
+  buckets.forEach(b => {
+    const row = document.createElement('div');
+    row.className = 'ds-item';
+    const id = `ds-${CSS.escape(b.key)}`;
+    row.innerHTML = `
+      <input type="checkbox" id="${id}" data-ds="${escHtml(b.key)}" checked>
+      <label for="${id}" title="${escHtml(b.key)}">${escHtml(b.key.replace(/-/g,' '))}</label>
+      <span class="ds-count">${fmtNum(b.doc_count)}</span>
+    `;
+    row.querySelector('input').addEventListener('change', e => {
+      if (e.target.checked) state.excludedDatasets.delete(b.key);
+      else { state.excludedDatasets.add(b.key); document.getElementById('ds-all').checked = false; }
+      search(true);
+    });
+    list.appendChild(row);
+  });
+}
+
+// ── Event wiring ──────────────────────────────────────────────
+let debounceTimer;
+document.getElementById('search-input').addEventListener('input', e => {
+  state.query = e.target.value;
+  state.lastVector = null;
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => search(true), 350);
+});
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.mode = btn.dataset.mode;
+    state.lastVector = null;
+    // auto-open help on mode switch if help is already open
+    if (document.getElementById('mode-help').classList.contains('open')) {
+      renderHelpPanel(state.mode);
+    }
+    if (state.query.trim()) search(true);
+  });
+});
+
+document.getElementById('help-close-btn').addEventListener('click', closeHelp);
+
+document.getElementById('help-btn').addEventListener('click', () => {
+  const panel = document.getElementById('mode-help');
+  const btn   = document.getElementById('help-btn');
+  if (panel.classList.contains('open')) {
+    closeHelp();
+  } else {
+    renderHelpPanel(state.mode);
+    panel.classList.add('open');
+    btn.classList.add('active');
+  }
+});
+
+document.getElementById('modal-close').addEventListener('click', () =>
+  document.getElementById('modal-overlay').classList.remove('open'));
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay'))
+    document.getElementById('modal-overlay').classList.remove('open');
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('modal-overlay').classList.remove('open');
+});
+
+// ── Helpers ───────────────────────────────────────────────────
+const fmtNum  = n  => Number(n).toLocaleString();
+const escHtml = s  => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const dsShort = ds => { if(!ds) return '—'; const p=ds.split('-'); return p.length>4 ? p.slice(0,4).join('-')+'…' : ds; };
+
+// ── Init ──────────────────────────────────────────────────────
+loadDatasets();
+search(true);
+</script>
+</body>
+</html>

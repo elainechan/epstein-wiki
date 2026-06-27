@@ -1,3 +1,19 @@
+```
+ ______ _____   _____ _______ ______ _____ _   _ 
+|  ____|  __ \ / ____|__   __|  ____|_   _| \ | |
+| |__  | |__) | (___    | |  | |__    | | |  \| |
+|  __| |  ___/ \___ \   | |  |  __|   | | | . ` |
+| |____| |     ____) |  | |  | |____ _| |_| |\  |
+|______|_|    |_____/   |_|  |______|_____|_| \_|
+
+ ______ _____ _      ______  _____ 
+|  ____|_   _| |    |  ____|/ ____|
+| |__    | | | |    | |__  | (___  
+|  __|   | | | |    |  __|  \___ \ 
+| |     _| |_| |____| |____ ____) |
+|_|    |_____|______|______|_____/ 
+```
+
 # Epstein File Wiki — POC
 
 **Investigative Journalism Research Knowledge Base**
@@ -97,6 +113,51 @@ semiont browse resources
 ```
 
 **Day 1 exit condition:** `_count > 0`, BM25 returns hits, entity annotations visible in Semiont UI.
+
+---
+
+## Search UI (OpenSearch Direct — no Semiont required)
+
+Standalone browser UI that queries OpenSearch and Ollama directly. No Semiont containers needed.
+
+**Stack:** `search-ui/index.html` + `search-ui/server.py` (stdlib Python proxy, no deps)
+
+### Start
+
+```bash
+cd search-ui
+python3 server.py
+# → http://localhost:8765/
+```
+
+Proxy routes:
+- `GET /` → serves `index.html`
+- `POST /api/*` → `http://localhost:9200/*` (OpenSearch)
+- `POST /embed` → `http://localhost:11434/api/embeddings` (Ollama)
+
+Override defaults:
+```bash
+PORT=9000 OPENSEARCH_URL=http://remote:9200 OLLAMA_URL=http://remote:11434 python3 server.py
+```
+
+### Search modes
+
+| Mode | Algorithm | Score color | When to use |
+|------|-----------|-------------|-------------|
+| **Full-text** | BM25 multi_match, fuzziness AUTO | yellow | Names, case numbers, orgs, partial spellings |
+| **Phrase** | match_phrase (exact adjacency) | orange | Exact legal phrases, word-order matters |
+| **Semantic** | k-NN cosine on 768-dim vectors via nomic-embed-text | purple | Conceptual questions, paraphrases, unknown terminology |
+| **Hybrid** | bool/should: BM25 + k-NN combined | green | Best overall — maximum recall |
+
+Click `?` in the UI for per-mode docs, example queries, and OpenSearch DSL reference links.
+
+### Prerequisites
+
+OpenSearch index `epstein-wiki` must be populated (run ingest pipeline first).
+Ollama must have `nomic-embed-text` pulled — verified at startup with:
+```bash
+curl http://localhost:11434/api/tags | python3 -c "import sys,json; print([m['name'] for m in json.load(sys.stdin)['models']])"
+```
 
 ---
 
