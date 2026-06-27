@@ -148,6 +148,7 @@ services:
       - SEMIONT_ROOT=/app/project
       - SEMIONT_ENV=local
       - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=6144
     volumes:
       - .:/app/project
       - ./docker/semiontconfig:/root/.semiontconfig:ro

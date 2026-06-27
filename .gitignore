@@ -3,13 +3,15 @@
 
 # Data
 epstein-files/
-*.pdf
 download
 download.log
+*.pdf
+
+# Semiont event store (915K annotations, 934MB — too large for git)
+.semiont/events/
 
 # Generated
 logs/
-.semiont/events/
 scripts/__pycache__/
 **/__pycache__
 

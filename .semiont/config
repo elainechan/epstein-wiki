@@ -3,10 +3,46 @@ name = "epstein-wiki"
 version = "0.1.0"
 
 [git]
-sync = true
+sync = false
 
 [site]
 domain = "localhost:3000"
 siteName = "epstein-wiki"
 adminEmail = ""
 oauthAllowedDomains = ["example.com"]
+
+[environments.local.backend]
+platform = "posix"
+port = 4000
+publicURL = "http://localhost:4000"
+
+[environments.local.frontend]
+platform = "posix"
+port = 3001
+publicURL = "http://localhost:3001"
+
+[environments.local.database]
+platform = "posix"
+type = "postgresql"
+host = "${DB_HOST:-localhost}"
+port = 5432
+name = "${DB_NAME:-epstein-wiki}"
+user = "${DB_USER:-semiont}"
+password = "${DB_PASSWORD:-semiont}"
+
+[environments.local.graph]
+platform = "posix"
+type = "memory"
+
+[environments.local.inference.ollama]
+platform = "posix"
+baseURL = "http://host.docker.internal:11434"
+
+[environments.local.actors.gatherer]
+inference = { type = "ollama", model = "llama3:8b" }
+
+[environments.local.actors.matcher]
+inference = { type = "ollama", model = "llama3:8b" }
+
+[environments.local.workers.default]
+inference = { type = "ollama", model = "llama3:8b" }
