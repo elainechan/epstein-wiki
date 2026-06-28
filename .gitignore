@@ -12,6 +12,7 @@ download.log
 
 # Generated
 logs/
+eval/results/
 scripts/__pycache__/
 **/__pycache__
 

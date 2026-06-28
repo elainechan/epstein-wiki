@@ -167,9 +167,82 @@ curl http://localhost:11434/api/tags | python3 -c "import sys,json; print([m['na
 
 ---
 
+## Ragas Evaluation
+
+End-to-end RAG eval: OpenSearch retrieval → llama3:8b generation → Ragas scoring → CSV output + Langfuse traces.
+
+**Prerequisites**
+
+```bash
+cd epstein-wiki
+.venv/bin/pip install ragas langchain-ollama langchain-community datasets -q
+```
+
+Ollama must have `llama3:8b` and `nomic-embed-text` pulled:
+```bash
+curl http://localhost:11434/api/tags | python3 -c "import sys,json; print([m['name'] for m in json.load(sys.stdin)['models']])"
+```
+
+**Smoke test — 2 questions (~8 min)**
+
+```bash
+source .env && \
+LANGFUSE_PUBLIC_KEY=$LANGFUSE_PUBLIC_KEY \
+LANGFUSE_SECRET_KEY=$LANGFUSE_SECRET_KEY \
+LANGFUSE_HOST=$LANGFUSE_HOST \
+  .venv/bin/python3 eval/run_ragas.py --limit 2
+```
+
+Expected output:
+```
+  ✓ faithfulness              0.750  (target ≥ 0.7)
+  ✓ answer_relevancy          0.880  (target ≥ 0.7)
+  ✓ context_recall            0.750  (target ≥ 0.6)
+  ✓ context_precision         0.794  (target ≥ 0.6)
+Saved: eval/results/ragas_YYYYMMDD_HHMMSS.csv
+```
+
+**Full run — 15 questions (~45 min)**
+
+```bash
+source .env && \
+LANGFUSE_PUBLIC_KEY=$LANGFUSE_PUBLIC_KEY \
+LANGFUSE_SECRET_KEY=$LANGFUSE_SECRET_KEY \
+LANGFUSE_HOST=$LANGFUSE_HOST \
+  .venv/bin/python3 eval/run_ragas.py
+```
+
+Override search mode for all questions:
+```bash
+... .venv/bin/python3 eval/run_ragas.py --mode semantic
+```
+
+**Output**
+
+- CSV saved to `eval/results/ragas_YYYYMMDD_HHMMSS.csv` (gitignored)
+- Each question traced to Langfuse at `http://localhost:3000` (project: epstein-wiki)
+- Traces include retrieval span + generation span per question
+
+**Thresholds**
+
+| Metric | Target | Meaning |
+|---|---|---|
+| `faithfulness` | ≥ 0.7 | Answer claims grounded in retrieved context |
+| `answer_relevancy` | ≥ 0.7 | Answer addresses the question |
+| `context_recall` | ≥ 0.6 | Retrieved chunks cover the ground truth |
+| `context_precision` | ≥ 0.6 | Retrieved chunks are on-topic |
+
+If any metric fails → check `eval/results/` CSV per-question breakdown, tune retrieval mode or system prompt.
+
+**Dataset**
+
+`eval/dataset.json` — 15 ground-truth Q&A pairs covering: person queries (Maxwell, Acosta), event queries (arrests, plea deal), property queries (Little Saint James), and network queries (flight logs, victim testimony).
+
+---
+
 ## Day 3 — Eval, Prompts, Demo-Ready
 
-*Coming next — Ragas + Promptfoo*
+*Coming next — Promptfoo prompt regression tests*
 
 ---
 

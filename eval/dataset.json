@@ -1,0 +1,77 @@
+[
+  {
+    "question": "What role did Ghislaine Maxwell play in Epstein's operation according to victim testimony?",
+    "ground_truth": "Ghislaine Maxwell recruited young girls and women for Epstein. Victims described her as the 'main lady' and 'mamma bear' who directed them to report to her and Epstein. She recruited girls to Epstein's island and managed the operation.",
+    "mode": "hybrid"
+  },
+  {
+    "question": "When was Jeffrey Epstein arrested on sex trafficking charges in New York?",
+    "ground_truth": "Jeffrey Epstein was arrested on July 6, 2019 on sex trafficking charges in New York. The arrest was initially under seal and entered into the court record on July 8, 2019.",
+    "mode": "fulltext"
+  },
+  {
+    "question": "What was the 2008 non-prosecution agreement and who did it protect?",
+    "ground_truth": "The non-prosecution agreement was signed in 2008 between Epstein and federal prosecutors led by Alexander Acosta. It allowed Epstein to plead to state charges and shielded him and potential co-conspirators from federal prosecution. Victims alleged the government failed to notify them of the agreement as required by the Crime Victims' Rights Act.",
+    "mode": "hybrid"
+  },
+  {
+    "question": "What properties did Jeffrey Epstein own in the US Virgin Islands?",
+    "ground_truth": "Epstein owned Little Saint James island, approximately 75 acres, and Great Saint James island, which he obtained through a straw purchaser in 2016. He refused to permit investigators from the Virgin Islands Department of Justice to enter Little Saint James as recently as July 2018.",
+    "mode": "hybrid"
+  },
+  {
+    "question": "How were flight log passengers recorded when names were unknown?",
+    "ground_truth": "Pilots completed both a flight log and a passenger manifest for each flight. When a passenger's name was unknown, they were recorded simply as 'female' rather than by name, according to pilot testimony.",
+    "mode": "fulltext"
+  },
+  {
+    "question": "Who was Alexander Acosta and what was his role in the Epstein case?",
+    "ground_truth": "R. Alexander Acosta was the United States Attorney who signed the non-prosecution agreement with Epstein's lawyers. He represented the government in the plea negotiations and authorized the agreement that resolved the federal investigation.",
+    "mode": "fulltext"
+  },
+  {
+    "question": "What legal actions did Jane Doe victims take under the Crime Victims' Rights Act?",
+    "ground_truth": "Jane Doe victims sought to nullify Epstein's plea agreement, alleging the government failed to fulfill its legal obligations to inform and consult with them before the plea deal. They filed complaints under the Crime Victims' Rights Act arguing the non-prosecution agreement violated their rights.",
+    "mode": "hybrid"
+  },
+  {
+    "question": "How did Jeffrey Epstein die?",
+    "ground_truth": "Jeffrey Epstein died in jail. The medical examiner concluded his death was a suicide by hanging. He was held at the same New York jail that later had an incident involving an accidental release of a serial bank robber. Critics of the Bureau of Prisons raised questions about the circumstances.",
+    "mode": "hybrid"
+  },
+  {
+    "question": "What happened at Epstein's Palm Beach estate according to court documents?",
+    "ground_truth": "Court documents reference the Palm Beach estate in connection with Epstein's 2008 state plea deal. The plea conference took place regarding the State of Florida v. Jeffrey Epstein case. Documents related to the Palm Beach proceedings were certified and included in the disclosed files.",
+    "mode": "fulltext"
+  },
+  {
+    "question": "What did Virginia Giuffre allege in her complaint?",
+    "ground_truth": "Virginia Giuffre was one of the victims who self-identified in proceedings related to the Crime Victims' Rights Act challenge to Epstein's plea deal. The victims alleged the government failed to inform and consult them in the process leading up to Epstein's plea agreement.",
+    "mode": "semantic"
+  },
+  {
+    "question": "Who piloted Jeffrey Epstein's aircraft and what records did they keep?",
+    "ground_truth": "Pilots including David Rogers piloted Epstein's aircraft and maintained both a flight log and a passenger manifest for each flight. The logs recorded passenger names when known, or simply noted 'female' when names were unavailable.",
+    "mode": "fulltext"
+  },
+  {
+    "question": "What was the relationship between the federal and state charges against Epstein in 2008?",
+    "ground_truth": "Federal prosecutors reached a non-prosecution agreement with Epstein that allowed him to resolve the matter by pleading to state charges in Florida rather than face federal prosecution. The non-prosecution agreement was signed in June 2008, and the state plea conference followed. Victims did not receive copies of the proposed plea agreement.",
+    "mode": "hybrid"
+  },
+  {
+    "question": "What allegations were made against Epstein regarding Little Saint James island?",
+    "ground_truth": "Epstein operated with impunity for years at Little Saint James. The island was the subject of a search warrant. Epstein refused to permit Virgin Islands Department of Justice investigators to enter the property as recently as July 2018. Victim testimony described Maxwell recruiting girls to the island.",
+    "mode": "semantic"
+  },
+  {
+    "question": "What court cases were filed in the Southern District of New York against Epstein's estate?",
+    "ground_truth": "Multiple civil cases were filed in SDNY including cases involving co-executors Darren Indyke and Richard Kahn of the Epstein estate. Cases such as v-indyke-no-119-cv-10475-sdny-2019 involved motions regarding service and other procedural matters against the estate defendants.",
+    "mode": "fulltext"
+  },
+  {
+    "question": "How did victims learn about the non-prosecution agreement?",
+    "ground_truth": "Victims received a copy of the non-prosecution agreement in August 2008, approximately two months after it was signed in June 2008. They used it in September 2008 when filing civil actions against Epstein in Florida state court. The government did not notify certain Jane Does about the agreement's existence during the negotiation period.",
+    "mode": "hybrid"
+  }
+]
