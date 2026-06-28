@@ -1,0 +1,11 @@
+Classify the following search query into exactly one search mode.
+
+Modes:
+- fulltext: specific names, case numbers, document IDs, organisations, known exact terms (e.g. "Ghislaine Maxwell", "19-cv-10475")
+- phrase: exact quoted phrases that must appear verbatim and adjacent (e.g. "non-prosecution agreement", "unlawful sexual activity")
+- semantic: conceptual or open-ended questions about motivations, relationships, patterns (e.g. "who helped recruit victims", "why did prosecutors drop charges")
+- hybrid: multi-keyword investigation queries mixing names and concepts (e.g. "maxwell epstein island", "acosta plea deal victims")
+
+Respond with ONLY the mode name (one word, lowercase). No explanation.
+
+Query: {{query}}

@@ -1,0 +1,51 @@
+description: "Entity extraction — must return valid JSON, extract correctly, no hallucination"
+
+providers:
+  - id: ollama:chat:llama3:8b
+    config:
+      temperature: 0.1
+
+prompts:
+  - file://prompts/entity-extract.txt
+
+tests:
+
+  - description: "Extracts person names correctly"
+    vars:
+      text: "Testimony from Jane Doe, age 22, was corroborated by attorney John Smith."
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "(()=>{ const a=JSON.parse(output); return Array.isArray(a)&&a.some(e=>e.name&&e.name.toLowerCase().includes('jane doe')); })()"
+
+  - description: "Extracts organisation and location entities"
+    vars:
+      text: "The meeting was held at the Southern District of New York courthouse on East 71st Street, Manhattan."
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "(()=>{ const a=JSON.parse(output); return Array.isArray(a)&&a.some(e=>e.type==='Location'||e.type==='Organization'); })()"
+
+  - description: "Returns JSON array with at least 2 entities"
+    vars:
+      text: "Jeffrey Epstein and Ghislaine Maxwell met at the Palm Beach estate in 2002."
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "(()=>{ const a=JSON.parse(output); return Array.isArray(a)&&a.length>=2; })()"
+
+  - description: "Does not invent named persons from vague text"
+    vars:
+      text: "Several unnamed associates attended a meeting at an undisclosed location."
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "(()=>{ const a=JSON.parse(output); return !a.some(e=>e.type==='Person'&&e.name&&e.name!==null); })()"
+
+  - description: "Extracts date entities"
+    vars:
+      text: "The non-prosecution agreement was executed on June 30, 2008 in the Southern District of Florida."
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "(()=>{ const a=JSON.parse(output); return Array.isArray(a)&&a.some(e=>e.type==='Date'||(e.name&&e.name.includes('2008'))); })()"

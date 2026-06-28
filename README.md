@@ -246,6 +246,34 @@ If any metric fails → check `eval/results/` CSV per-question breakdown, tune r
 
 ---
 
+## Promptfoo Prompt Regression Tests
+
+Deterministic prompt regression tests against llama3:8b (no OpenAI required).
+
+**Three suites:**
+- `suite-qa.yaml` — 5 tests: grounding, refusal, no hallucination, date extraction, no speculation
+- `suite-entity.yaml` — 5 tests: person extraction, org/location, count, no invention, date entities
+- `suite-routing.yaml` — 7 tests: document ID, person name, case number → fulltext; exact phrase → phrase; conceptual → semantic; investigation → hybrid
+
+**Run all suites (~2 min):**
+```bash
+cd epstein-wiki/promptfoo
+bash run.sh
+```
+
+**Run single suite:**
+```bash
+bash run.sh --suite qa        # Q&A grounding
+bash run.sh --suite entity    # Entity extraction
+bash run.sh --suite routing   # Query routing
+```
+
+**Expected baseline:** 17/17 tests pass with llama3:8b.
+
+**Add a regression test:** edit the relevant `suite-*.yaml`, add a `tests:` entry, run the suite. CI should catch regressions when prompts change.
+
+---
+
 ## Known Gaps
 
 ### OCR / Image Recognition

@@ -1,0 +1,5 @@
+Extract named entities from the following legal document text.
+Return a JSON array of objects with fields: "name", "type" (one of: Person, Organization, Location, Date), "context" (brief quote showing where the entity appears).
+Return ONLY valid JSON. No explanation, no markdown, no code fences.
+
+Text: {{text}}

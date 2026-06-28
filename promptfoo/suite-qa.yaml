@@ -1,0 +1,62 @@
+description: "Q&A grounding — answers must stay within retrieved context"
+
+providers:
+  - id: ollama:chat:llama3:8b
+    config:
+      temperature: 0.1
+
+prompts:
+  - file://prompts/qa-system.txt
+
+tests:
+
+  - description: "Grounds answer in provided context"
+    vars:
+      question: "What role did Ghislaine Maxwell play?"
+      context: |
+        Victims testified that Ghislaine Maxwell was the main recruiter.
+        She was described as the 'mamma bear' who directed victims to report to her.
+        Maxwell recruited girls to Epstein's island.
+    assert:
+      - type: icontains
+        value: "maxwell"
+      - type: llm-rubric
+        value: "The answer is based only on the provided context and does not introduce external facts not present in the context"
+        provider: ollama:chat:llama3:8b
+
+  - description: "Refuses to answer when context is insufficient"
+    vars:
+      question: "What happened at the Palm Beach mansion?"
+      context: "This document discusses financial arrangements for a trust."
+    assert:
+      - type: llm-rubric
+        value: "The response acknowledges the context does not contain enough information to answer the question"
+        provider: ollama:chat:llama3:8b
+
+  - description: "Does not hallucinate names absent from context"
+    vars:
+      question: "Who else was present at the meeting?"
+      context: "Several unnamed associates attended a meeting at the property."
+    assert:
+      - type: llm-rubric
+        value: "The response does not invent or name specific people who are not mentioned in the context"
+        provider: ollama:chat:llama3:8b
+
+  - description: "Includes specific dates when present in context"
+    vars:
+      question: "When was Epstein arrested?"
+      context: "Jeffrey Epstein was arrested on July 6, 2019 on sex trafficking charges in New York."
+    assert:
+      - type: icontains
+        value: "2019"
+      - type: icontains
+        value: "july"
+
+  - description: "Does not speculate beyond what context states"
+    vars:
+      question: "Why did the prosecutors offer a plea deal?"
+      context: "The non-prosecution agreement was signed by R. Alexander Acosta in 2008."
+    assert:
+      - type: llm-rubric
+        value: "The response does not speculate about motivations or add reasons not stated in the context"
+        provider: ollama:chat:llama3:8b

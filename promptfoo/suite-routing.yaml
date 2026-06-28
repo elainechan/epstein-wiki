@@ -1,0 +1,60 @@
+description: "Query routing — must classify queries to correct search mode"
+
+providers:
+  - id: ollama:chat:llama3:8b
+    config:
+      temperature: 0.1
+
+prompts:
+  - file://prompts/query-router.txt
+
+tests:
+
+  - description: "Routes document ID → fulltext"
+    vars:
+      query: "EFTA02744180"
+    assert:
+      - type: equals
+        value: "fulltext"
+
+  - description: "Routes person name → fulltext"
+    vars:
+      query: "Ghislaine Maxwell"
+    assert:
+      - type: equals
+        value: "fulltext"
+
+  - description: "Routes case number → fulltext"
+    vars:
+      query: "19-cv-10475"
+    assert:
+      - type: equals
+        value: "fulltext"
+
+  - description: "Routes exact legal phrase → phrase"
+    vars:
+      query: "non-prosecution agreement"
+    assert:
+      - type: equals
+        value: "phrase"
+
+  - description: "Routes conceptual question → semantic"
+    vars:
+      query: "who helped recruit young women for epstein"
+    assert:
+      - type: equals
+        value: "semantic"
+
+  - description: "Routes financial motive question → semantic or hybrid"
+    vars:
+      query: "financial arrangements made to silence victims"
+    assert:
+      - type: javascript
+        value: "['semantic','hybrid'].includes(output.trim())"
+
+  - description: "Routes general investigation → hybrid or semantic"
+    vars:
+      query: "maxwell epstein recruitment operation"
+    assert:
+      - type: javascript
+        value: "['hybrid','semantic'].includes(output.trim())"
