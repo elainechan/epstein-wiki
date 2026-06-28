@@ -17,7 +17,9 @@
 # Epstein File Wiki — POC
 
 **Investigative Journalism Research Knowledge Base**
-Stack: Semiont v0.5.7 · OpenSearch · Ollama · Langfuse · Ragas · Promptfoo
+Stack: OpenSearch · Ollama · Langfuse · Ragas · Promptfoo
+
+> **Semiont suspended** — pagination bug causes ingest to hang on large corpora. Not used until patched. All search/eval runs directly against OpenSearch.
 
 ---
 
@@ -79,9 +81,9 @@ Expected containers and ports:
 | `epstein-dashboards` | 5601 | running |
 | `epstein-langfuse-db` | (internal) | healthy |
 | `epstein-langfuse` | 3000 | healthy |
-| `epstein-semiont-db` | (internal) | healthy |
-| `epstein-semiont-backend` | 4000 | healthy |
-| `epstein-semiont-frontend` | 3001 | healthy |
+| `epstein-semiont-db` | (internal) | healthy (unused) |
+| `epstein-semiont-backend` | 4000 | healthy (unused) |
+| `epstein-semiont-frontend` | 3001 | healthy (unused) |
 
 > `epstein-langfuse` may show `unhealthy` — the health endpoint `/api/public/health` sometimes lags. Check `http://localhost:3000` loads instead.
 
@@ -186,16 +188,8 @@ curl -s http://localhost:9200/_cluster/health | python3 -c "import sys,json; d=j
 ```bash
 # Required
 docker desktop running
-node --version          # 20+
-python3 --version       # 3.10+
-export ANTHROPIC_API_KEY=sk-...
-npm install -g @semiont/cli
-semiont --version       # confirm
-
-# Python deps
-pip install requests beautifulsoup4 pymupdf pytesseract Pillow --break-system-packages
-# Tesseract binary (for scanned PDFs — see Known Gap below)
-brew install tesseract     # macOS
+python3 --version     # 3.10+
+brew install tesseract     # macOS (for scanned PDF OCR)
 # sudo apt install tesseract-ocr   # Ubuntu
 ```
 
@@ -207,25 +201,17 @@ brew install tesseract     # macOS
 
 ```bash
 docker compose up -d
-# Wait ~60s for OpenSearch + Ollama model pull
-docker compose ps       # all services should show healthy
+# Wait ~60s for OpenSearch healthcheck
+docker compose ps       # opensearch + langfuse containers should show healthy
 ```
 
-Services:
+Services in use:
 - OpenSearch: http://localhost:9200
 - OpenSearch Dashboards: http://localhost:5601
 - Langfuse: http://localhost:3000
-- Ollama: http://localhost:11434
+- Ollama: http://localhost:11434 (native, not Docker)
 
-### 2. Init Semiont project
-
-```bash
-semiont init --config semiont.toml
-semiont provision --service opensearch
-semiont provision --service mcp        # Claude Desktop integration
-```
-
-### 3. Download corpus (POC: datasets 1–3)
+### 2. Download corpus (POC: datasets 1–3)
 
 ```bash
 python scripts/batch_download_epstein_files.py --datasets 1 3
@@ -267,12 +253,9 @@ curl http://localhost:9200/epstein-wiki/_count
 
 # BM25 search:
 curl 'http://localhost:9200/epstein-wiki/_search?q=Ghislaine+Maxwell&size=3' | python3 -m json.tool
-
-# Entity annotations in Semiont UI:
-semiont browse resources
 ```
 
-**Day 1 exit condition:** `_count > 0`, BM25 returns hits, entity annotations visible in Semiont UI.
+**Day 1 exit condition:** `_count > 0`, BM25 returns hits.
 
 ---
 
@@ -436,6 +419,10 @@ bash run.sh --suite routing   # Query routing
 
 ## Known Gaps
 
+### Semiont — Pagination Bug (blocked)
+
+Semiont v0.5.7 hangs during ingest on large corpora due to missing pagination in the document listing API. All ingestion and search runs directly against OpenSearch until this is patched upstream. Semiont containers remain in `docker-compose.yml` but are not used.
+
 ### OCR / Image Recognition
 
 **Semiont v0.5.7 has no native OCR.** Scanned PDFs (image-only, no text layer) upload as opaque blobs — they produce zero chunks in OpenSearch and are invisible to both BM25 and k-NN search.
@@ -470,9 +457,7 @@ From a clean clone:
 
 ```bash
 docker compose up -d
-pip install requests beautifulsoup4 pymupdf pytesseract Pillow --break-system-packages
-export ANTHROPIC_API_KEY=sk-...
-semiont init --config semiont.toml
+pip install requests beautifulsoup4 pymupdf pytesseract Pillow
 python scripts/batch_download_epstein_files.py --datasets 1 3
 python scripts/ocr_preprocess.py   # if scanned files found
 python scripts/ingest.py
@@ -481,4 +466,5 @@ python scripts/ingest.py
 
 ---
 
-*Semiont v0.5.7 (Apache-2.0) · OpenSearch (Apache-2.0) · Ragas (Apache-2.0) · Langfuse (MIT) · Promptfoo (MIT)*
+*OpenSearch (Apache-2.0) · Ollama · Ragas (Apache-2.0) · Langfuse (MIT) · Promptfoo (MIT)*
+*Semiont v0.5.7 (Apache-2.0) — suspended pending pagination patch*
