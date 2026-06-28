@@ -190,27 +190,30 @@ curl http://localhost:9200/epstein-wiki/_count
 
 ---
 
-## Restart Services (daily use)
+## START HERE — Daily Startup
 
-After the machine restarts or you stop containers:
+Run these 3 commands every session (after first-time setup):
 
 ```bash
-# 1. Start Ollama (if not running as a service)
+# 1. Ollama (embeddings + LLM judge)
 ollama serve &
 
-# 2. Start Docker stack
-cd epstein-wiki
+# 2. Docker stack (OpenSearch + Langfuse + Semiont containers)
+cd /Users/augustus/Codebase/epstein-wiki
 docker compose up -d
 
-# 3. Start Search UI
-source .env && cd search-ui && python3 server.py
+# 3. Search UI (browser interface on :8765)
+source .env && python3 search-ui/server.py
 ```
 
-Check status:
+Verify everything is up:
 ```bash
+curl -s http://localhost:9200/epstein-wiki/_count   # must show count ~764602
+curl -s http://localhost:11434/api/tags | python3 -c "import sys,json; print([m['name'] for m in json.load(sys.stdin)['models']])"
+curl -s http://localhost:3000/api/public/health
 docker ps --format "table {{.Names}}\t{{.Status}}"
-curl -s http://localhost:11434/api/tags | python3 -c "import sys,json; print('ollama ok:', [m['name'] for m in json.load(sys.stdin)['models']])"
-curl -s http://localhost:9200/_cluster/health | python3 -c "import sys,json; d=json.load(sys.stdin); print('opensearch:', d['status'])"
+open http://localhost:8765   # Search UI
+open http://localhost:3000   # Langfuse traces
 ```
 
 ---
