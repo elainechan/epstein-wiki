@@ -158,6 +158,38 @@ curl http://localhost:9200/epstein-wiki/_count
 
 ---
 
+## ⚠️ DANGER — Commands That Wipe OpenSearch Data
+
+**Reingest takes 24+ hours. These commands permanently destroy the index.**
+
+```bash
+# DESTROYS ALL DATA — never run these:
+docker compose down -v                          # wipes ALL named volumes
+docker volume rm epstein-wiki_opensearch-data  # wipes OpenSearch index only
+docker volume prune                            # wipes all unused volumes (may include opensearch-data if container is stopped)
+```
+
+**Safe alternatives:**
+
+```bash
+# Stop/restart without data loss:
+docker compose stop
+docker compose start
+docker compose restart opensearch
+
+# Remove containers but keep volumes:
+docker compose down        # NO -v flag
+```
+
+**Verify data is intact after any restart:**
+```bash
+curl http://localhost:9200/epstein-wiki/_count
+# Must return: {"count":764602,...}
+# If count is 0 or index missing → data was wiped, reingest required
+```
+
+---
+
 ## Restart Services (daily use)
 
 After the machine restarts or you stop containers:
