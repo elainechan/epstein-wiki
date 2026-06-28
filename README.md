@@ -184,6 +184,20 @@ open http://localhost:8765   # Search UI
 open http://localhost:3000   # Langfuse traces
 ```
 
+## Safe Shutdown
+
+```bash
+# 1. Kill Search UI
+lsof -ti :8765 | xargs kill -9
+
+# 2. Stop Docker stack (volumes preserved)
+cd /Users/augustus/Codebase/epstein-wiki
+docker compose stop
+
+# 3. Stop Ollama
+pkill -f "ollama serve"
+```
+
 ---
 
 ## ⚠️ DANGER — Commands That Wipe OpenSearch Data
