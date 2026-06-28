@@ -21,6 +21,166 @@ Stack: Semiont v0.5.7 · OpenSearch · Ollama · Langfuse · Ragas · Promptfoo
 
 ---
 
+## From-Scratch Setup (new machine)
+
+Complete start-to-finish sequence. Run once on a fresh machine. After this, use **Restart Services** below for daily use.
+
+### Step 1 — System dependencies
+
+```bash
+# macOS (Homebrew)
+brew install python@3.12 node tesseract
+brew install --cask docker          # Docker Desktop
+
+# Verify
+docker --version
+node --version        # need 20+
+python3 --version     # need 3.10+
+```
+
+### Step 2 — Install Ollama (local, not Docker)
+
+Ollama runs natively on the host for GPU access. Do NOT use the Docker Ollama service — comment it out.
+
+```bash
+# macOS
+brew install ollama
+
+# Start the Ollama daemon (runs on :11434)
+ollama serve &
+
+# Pull required models (one-time, ~5 GB total)
+ollama pull nomic-embed-text    # 274 MB — embeddings
+ollama pull llama3:8b           # 4.7 GB — generator + judge LLM
+
+# Verify
+curl http://localhost:11434/api/tags | python3 -c \
+  "import sys,json; [print(m['name']) for m in json.load(sys.stdin)['models']]"
+# Expected: nomic-embed-text:latest, llama3:8b
+```
+
+> Ollama auto-starts on macOS after `brew services start ollama`. To keep it manual: `ollama serve`.
+
+### Step 3 — Start Docker stack
+
+```bash
+cd epstein-wiki
+docker compose up -d
+
+# Wait ~60s for healthchecks. Verify:
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+```
+
+Expected containers and ports:
+
+| Container | Port | Status |
+|---|---|---|
+| `epstein-opensearch` | 9200, 9600 | healthy |
+| `epstein-dashboards` | 5601 | running |
+| `epstein-langfuse-db` | (internal) | healthy |
+| `epstein-langfuse` | 3000 | healthy |
+| `epstein-semiont-db` | (internal) | healthy |
+| `epstein-semiont-backend` | 4000 | healthy |
+| `epstein-semiont-frontend` | 3001 | healthy |
+
+> `epstein-langfuse` may show `unhealthy` — the health endpoint `/api/public/health` sometimes lags. Check `http://localhost:3000` loads instead.
+
+### Step 4 — Create Langfuse account
+
+Langfuse has no default user. Create one on first run:
+
+```bash
+open http://localhost:3000
+```
+
+1. Click **Sign up**
+2. Email: `your@email.com`, Password: choose a strong password
+3. Create organization: `wiki`
+4. Create project: `epstein-wiki`
+5. Go to **Settings → API Keys → Create new secret key**
+6. Copy the public key (`pk-lf-...`) and secret key (`sk-lf-...`)
+
+Save to `.env` (never commit this file):
+
+```bash
+cat >> .env <<'EOF'
+LANGFUSE_EMAIL=your@email.com
+LANGFUSE_PASSWORD=yourpassword
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_HOST=http://localhost:3000
+OPENSEARCH_URL=http://localhost:9200
+OLLAMA_URL=http://localhost:11434
+EOF
+```
+
+### Step 5 — Python virtualenv + deps
+
+```bash
+cd epstein-wiki
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install requests beautifulsoup4 pymupdf pytesseract Pillow
+pip install langfuse langchain-ollama langchain-community datasets ragas==0.4.3
+```
+
+### Step 6 — Start Search UI
+
+```bash
+source .env
+cd search-ui
+python3 server.py
+# Open http://localhost:8765
+```
+
+### Step 7 — Verify everything
+
+```bash
+# OpenSearch alive
+curl http://localhost:9200/_cluster/health | python3 -m json.tool
+
+# Ollama alive
+curl http://localhost:11434/api/tags | python3 -c \
+  "import sys,json; [print(m['name']) for m in json.load(sys.stdin)['models']]"
+
+# Langfuse alive
+curl http://localhost:3000/api/public/health
+
+# Search UI
+open http://localhost:8765
+
+# Index has data
+curl http://localhost:9200/epstein-wiki/_count
+```
+
+---
+
+## Restart Services (daily use)
+
+After the machine restarts or you stop containers:
+
+```bash
+# 1. Start Ollama (if not running as a service)
+ollama serve &
+
+# 2. Start Docker stack
+cd epstein-wiki
+docker compose up -d
+
+# 3. Start Search UI
+source .env && cd search-ui && python3 server.py
+```
+
+Check status:
+```bash
+docker ps --format "table {{.Names}}\t{{.Status}}"
+curl -s http://localhost:11434/api/tags | python3 -c "import sys,json; print('ollama ok:', [m['name'] for m in json.load(sys.stdin)['models']])"
+curl -s http://localhost:9200/_cluster/health | python3 -c "import sys,json; d=json.load(sys.stdin); print('opensearch:', d['status'])"
+```
+
+---
+
 ## Prerequisites
 
 ```bash
